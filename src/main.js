@@ -17,24 +17,32 @@ let totalStartPoints = [];
 let gameWidth;
 let gameHeight;
 
-let smartContractWidth = 108;
-let smartContractHeight = 192;
+let smartContractWidth = 217;
+let smartContractHeight = 276;
+let smartContractLife = 1500;
+
+let unapprovedFill = new createjs.Graphics.Fill("grey");
+let approvedFill   = new createjs.Graphics.Fill("green");
+let failedFill     = new createjs.Graphics.Fill("red");
 
 function createSmartContract(x,y) {
   let graphics = new createjs.Graphics();
-  var shape = new createjs.Shape(graphics);
 
   // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
   graphics.append(createjs.Graphics.beginCmd);
   // we need to define the path before applying the fill:
-  var rect = new createjs.Graphics.Rect( x, y, smartContractWidth, smartContractHeight );
+  var rect = new createjs.Graphics.Rect( 0,0, smartContractWidth, smartContractHeight );
   graphics.append(rect);
   // fill the path we just defined:
   var stroke = new createjs.Graphics.Stroke("black");
   graphics.append(stroke);
 
-  shape.regX = 50;
-  shape.regY = 50;
+  graphics.append(unapprovedFill);
+
+  var shape = new createjs.Shape(graphics);
+  shape.set({x: x, y:y});
+  shape.regX = smartContractWidth/2;
+  shape.regY = smartContractHeight/2;
 
   return shape;
 }
@@ -66,8 +74,9 @@ function generateStartPoints() {
 }
 
 function stagePoint() {
-  let x = Math.floor(Math.random() * (gameWidth - smartContractWidth));
-  let y = Math.floor(Math.random() * (gameHeight - smartContractHeight));
+	// x and y should always put the element with padding so when scaled it does not go out of the canvas
+  let x = Math.floor(Math.random() * (gameWidth - smartContractWidth*2)) + smartContractWidth;
+  let y = Math.floor(Math.random() * (gameHeight - smartContractHeight*2)) + smartContractHeight;
   return {x,y};
 }
 
@@ -79,22 +88,34 @@ function handleTick(event) {
   // Actions carried out each tick (aka frame)
   if (!event.paused) {
     // Actions carried out when the Ticker is not paused.
-    let randomTick = Math.ceil(Math.random() * 25) + 5;
+    let randomTick = Math.ceil(Math.random() * 35) + 15;
     if(createjs.Ticker.getTicks() % randomTick === 0) {
       let point = totalStartPoints[Math.floor(Math.random() * totalStartPoints.length)];
       let smartContract = createSmartContract(point.x, point.y);
-      smartContract.regX = 50;
-      smartContract.regY = 50;
       smartContract.scaleX = 0;
       smartContract.scaleY = 0;
+      smartContract.approved = false;
+
+      smartContract.on('click', smartContractClicked);
 
       stage.addChild(smartContract);
 
       createjs.Tween.get(smartContract, { loop: false })
-      .to({ scaleX: 1, scaleY: 1 }, 1000, createjs.Ease.backOut())
-      .to({ alpha: 0}, 100, createjs.Ease.quadOut(2));
+      .to({ scaleX: 1, scaleY: 1 }, smartContractLife, createjs.Ease.backOut())
+      .call(function() {
+      	smartContract.off('click');
+      	if(!this.approved) {
+	      	this.graphics.append(failedFill);
+      	}
+      })
+      .to({ alpha: 0}, 200, createjs.Ease.quadOut(2));
     }
   }
+}
+
+function smartContractClicked() {
+	this.approved = true;
+	this.graphics.append(approvedFill);
 }
 
 function generateContracts() {
