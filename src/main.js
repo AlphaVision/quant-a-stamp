@@ -199,7 +199,90 @@ window.addEventListener('load', function(event) {
   loadAssets()
   .then(() => {
 	  prepareGame();
-	  //generateContracts();
-	  startGame();
+  showWelcomeDialog();
   });
 });
+
+
+function showWelcomeDialog() {
+  let welcomeDialog = new createjs.Container();
+  welcomeDialog.width = gameWidth/2;
+  welcomeDialog.height = gameHeight/2;
+  welcomeDialog.regX = gameWidth/4;
+  welcomeDialog.regY = gameHeight/4;
+  welcomeDialog.x = gameWidth/2;
+  welcomeDialog.y = gameHeight/2;
+
+
+  // ----------------------------------------------------------- WELCOME DIALOG BACKGROUNDS
+  let graphics = new createjs.Graphics();
+
+  // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
+  graphics.append(createjs.Graphics.beginCmd);
+
+  // we need to define the path before applying the fill:
+  var rect = new createjs.Graphics.Rect(0,0,welcomeDialog.width, welcomeDialog.height);
+  graphics.append(rect);
+  // fill the path we just defined:
+  var fill = new createjs.Graphics.Fill();
+  fill.linearGradient(["#000", "#FFF"], [0, 1], 0, 0, 0, 750);
+  graphics.append(fill);
+
+
+
+  var shape = new createjs.Shape(graphics);
+  shape.set({x: 0, y:0, width: welcomeDialog.width, height: welcomeDialog.height, alpha: 0.7});
+
+  welcomeDialog.addChild(shape);
+
+  // ----------------------------------------------------------- QUANTSTAMP LOGO
+  let logo = new createjs.Bitmap("img/logo_white.png");
+  logo.setTransform(262,30,0.4,0.4);
+  welcomeDialog.addChild(logo);
+
+  // ----------------------------------------------------------- GAME INFO
+
+  text = new createjs.Text("Sign the smart contracts before the hackers get to them", "20px Arial", "#ffffff");
+  text.x = 110;
+  text.y = 240;
+  text.textBaseline = "alphabetic";
+  welcomeDialog.addChild(text);
+
+  // ----------------------------------------------------------- BUTTON
+
+  let startButton = new createjs.Container;
+
+  graphics = new createjs.Graphics();
+  graphics.append(createjs.Graphics.beginCmd);
+  //var rect = new createjs.Graphics.Rect(0,0,welcomeDialog.width/10, welcomeDialog.height/10);
+  var rect = new createjs.Graphics.RoundRect(0,0,welcomeDialog.width/4, welcomeDialog.height/6, 5, 5, 5, 5);
+  graphics.append(rect);
+  // fill the path we just defined:
+  var fill = new createjs.Graphics.Fill("rgba(0, 122, 255, 0.72)");
+  graphics.append(fill);
+  var stroke = new createjs.Graphics.Stroke("white");
+  graphics.append(stroke);
+  var strokeStyle = new createjs.Graphics.StrokeStyle(4);
+  graphics.append(strokeStyle);
+  shape = new createjs.Shape(graphics);
+  shape.set({width: welcomeDialog.width/4, height: welcomeDialog.height/6})
+
+  startButton.addChild(shape);
+  startButton.set({x: welcomeDialog.width/2 - welcomeDialog.width/8, y: welcomeDialog.height - welcomeDialog.height/6 - 40, width: welcomeDialog.width/4, height: welcomeDialog.height/6})
+
+  // ----------------------------------------------------------- BUTTON TEXT
+  var text = new createjs.Text("LET'S STAMP", "24px Arial", "#ffffff");
+  text.x = 10;
+  text.y = 40;
+  text.textBaseline = "alphabetic";
+  startButton.addChild(text);
+
+  startButton.on('click', function() {
+    stage.removeChild(welcomeDialog);
+    startGame();
+  });
+
+  welcomeDialog.addChild(startButton);
+
+  stage.addChild(welcomeDialog);
+}
