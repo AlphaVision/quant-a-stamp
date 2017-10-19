@@ -1,7 +1,7 @@
 'use strict';
 
 //find canvas and load images, wait for last image to load
-var canvas;
+let canvas;
 
 // create a new stage and point it at our canvas:
 let stage;
@@ -27,6 +27,13 @@ let smartContractSpriteForegrounds;
 let smartContractSpriteSheetBackgrounds;
 let smartContractSpriteSheetForegrounds;
 let queue;
+let myCursor;
+let smartContractsContainer;
+let points = 0;
+let fouls = 0;
+let maxFouls = 10;
+let gameFinished = false;
+let dialogShadow = new createjs.Shadow("#000000", 10, 15, 60);
 
 
 function prepareStage() {
@@ -38,6 +45,18 @@ function prepareStage() {
 
   gameWidth = stage.canvas.width;
   gameHeight = stage.canvas.height;
+
+  smartContractsContainer = new createjs.Container();
+  smartContractsContainer.set({
+  	x: 0,
+  	y: 0,
+  	width: gameWidth,
+  	height: gameHeight,
+  	mouseEnabled: true,
+  	mouseChildren: true,
+  	cursor: 'none'
+  });
+  stage.addChild(smartContractsContainer);
 }
 
 function prepareGame() {
@@ -59,6 +78,11 @@ function prepareGame() {
 
   smartContractSpriteBackgrounds.name = 'backgrounds';
 	smartContractSpriteForegrounds.name = 'foregrounds';
+
+	myCursor = new createjs.Bitmap("img/crosshair.png");
+	myCursor.name = "crosshair";
+	myCursor.set({regX: 22, regY: 22, width: 44, height: 44});
+	myCursor.mouseEnabled = false;
 }
 
 function generateStartPoints() {
@@ -71,9 +95,8 @@ function generateStartPoints() {
   return startPointsList;
 }
 
-
 function createSmartContract(x,y) {
-  var sc = new createjs.Container();
+  let sc = new createjs.Container();
   sc.set({
   	x: x,
   	y: y,
@@ -94,7 +117,6 @@ function createSmartContract(x,y) {
   return sc;
 }
 
-
 function stagePoint() {
 	// x and y should always put the element with padding so when scaled it does not go out of the canvas
   let x = Math.floor(Math.random() * (gameWidth - smartContractWidth*2)) + smartContractWidth;
@@ -102,8 +124,24 @@ function stagePoint() {
   return {x,y};
 }
 
+function useCustomCursor(isCustom) {
+	if(isCustom) {
+		// this property delegates to the css-style, so it might not work in all (older) browsers
+		stage.cursor = 'none';
+		smartContractsContainer.cursor = 'none';
+		stage.addChild(myCursor);
+	} else {
+		stage.cursor = 'default';
+		smartContractsContainer.cursor = 'default';
+		stage.removeChild(myCursor);
+	}
+
+}
+
 function startGame() {
-  createjs.Ticker.addEventListener("tick", handleTick);
+	stage.enableMouseOver();
+	useCustomCursor(true);
+  createjs.Ticker.addEventListener("tick", gameTick);
 }
 
 function getStartPoint() {
@@ -119,7 +157,7 @@ function checkStartPointAvailability(p) {
 	// need to define how this will work
 	return true;
 	let available = false;
-	for(var point in currentStartPoints) {
+	for(let point in currentStartPoints) {
 		if(p.x + smartContractWidth < point.x && p.y + smartContractHeight < point.y) {
 			currentStartPoints.push(point);
 			available = true;
@@ -128,7 +166,10 @@ function checkStartPointAvailability(p) {
 	return available;
 }
 
-function handleTick(event) {
+function gameTick(event) {
+	myCursor.x = stage.mouseX;
+	myCursor.y = stage.mouseY;
+
   // Actions carried out each tick (aka frame)
   if (!event.paused) {
     // Actions carried out when the Ticker is not paused.
@@ -140,9 +181,10 @@ function handleTick(event) {
       smartContract.scaleY = 0;
       smartContract.approved = false;
 
+      smartContractsContainer.addChild(smartContract);
+
       smartContract.on('click', smartContractClicked);
 
-      stage.addChild(smartContract);
 
       createjs.Tween.get(smartContract, { loop: false })
       .to({ scaleX: 1, scaleY: 1 }, smartContractLife, createjs.Ease.backOut())
@@ -151,9 +193,14 @@ function handleTick(event) {
       	if(!this.approved) {
 	      	this.getChildByName('backgrounds').gotoAndStop(2);
   				this.getChildByName('foregrounds').gotoAndStop(2);
+      		scorePoint(this.approved);
       	}
-      })
-      .to({ alpha: 0}, 200, createjs.Ease.quadOut(2));
+      }, this)
+      .wait(300)
+      .to({ alpha: 0}, 200, createjs.Ease.quadOut(2))
+      .call(function() {
+      	smartContractsContainer.removeChild(this);
+      }, this);
     }
   }
 }
@@ -164,16 +211,44 @@ function smartContractClicked() {
 		this.approved = true;
 		this.getChildByName('backgrounds').gotoAndStop(1);
 		this.getChildByName('foregrounds').gotoAndStop(1);
+		scorePoint(this.approved);
 	}
 }
 
-function generateContracts() {
+function scorePoint(isGood) {
+	if(gameFinished) {
+		return;
+	}
 
-  let point = stagePoint();
-  let smartContract = createSmartContract(point.x, point.y);
+	if(isGood) {
+		points++;
+	} else {
+		fouls++;
+	}
 
-  stage.addChild(smartContract);
-  stage.update();
+	console.log("points: " + points, "fouls: " + fouls);
+	if(fouls >= maxFouls) {
+		fouls == maxFouls;
+		stopGame();
+	}
+}
+
+function stopGame() {
+	gameFinished = true;
+	smartContractsContainer.mouseEnabled = false;
+	createjs.Tween.get(smartContractsContainer, { loop: false })
+  .to({ alpha: 0}, 200, createjs.Ease.backOut())
+  .call(function() {
+  	stage.removeChild(smartContractsContainer);
+  })
+	createjs.Ticker.removeEventListener("tick", gameTick);
+	useCustomCursor(false);
+	createjs.Ticker.addEventListener("tick", finishTick);
+	showFinishDialog();
+}
+
+function finishTick() {
+
 }
 
 function loadAssets() {
@@ -184,6 +259,7 @@ function loadAssets() {
 		queue.loadManifest([
 			{id: "smartContractSpriteSheetBackgrounds", src:"img/smartContract-bgs.png"},
 			{id: "smartContractSpriteSheetForegrounds", src:"img/smartContract-bgs.png"},
+			{id: "crosshair", src:"img/crosshair.png"}
 		]);
 	});
 
@@ -199,7 +275,187 @@ window.addEventListener('load', function(event) {
   loadAssets()
   .then(() => {
 	  prepareGame();
-	  //generateContracts();
-	  startGame();
+    showWelcomeDialog();
   });
 });
+
+
+
+// ----------------------------------------------------------- WELCOME DIALOG
+function showWelcomeDialog() {
+  let welcomeDialog = new createjs.Container();
+  welcomeDialog.width = gameWidth/2;
+  welcomeDialog.height = gameHeight/2;
+  welcomeDialog.regX = gameWidth/4;
+  welcomeDialog.regY = gameHeight/4;
+  welcomeDialog.x = gameWidth/2;
+  welcomeDialog.y = gameHeight/2;
+
+
+  // ----------------------------------------------------------- WELCOME DIALOG BACKGROUNDS
+  let graphics = new createjs.Graphics();
+
+  // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
+  graphics.append(createjs.Graphics.beginCmd);
+
+  // we need to define the path before applying the fill:
+  let rect = new createjs.Graphics.Rect(0,0,welcomeDialog.width, welcomeDialog.height);
+  graphics.append(rect);
+  // fill the path we just defined:
+  let fill = new createjs.Graphics.Fill();
+  fill.linearGradient(["#000", "#FFF"], [0, 1], 0, 0, 0, 750);
+  graphics.append(fill);
+
+
+
+  let shape = new createjs.Shape(graphics);
+  shape.set({x: 0, y:0, width: welcomeDialog.width, height: welcomeDialog.height, alpha: 0.7});
+
+  welcomeDialog.addChild(shape);
+
+  // ----------------------------------------------------------- QUANTSTAMP LOGO
+  let logo = new createjs.Bitmap("img/logo_white.png");
+  logo.setTransform(262,30,0.4,0.4);
+  welcomeDialog.addChild(logo);
+
+  // ----------------------------------------------------------- GAME INFO
+
+  let text = new createjs.Text("Sign the smart contracts before the hackers get to them", "20px Arial", "#ffffff");
+  text.x = 110;
+  text.y = 240;
+  text.textBaseline = "alphabetic";
+  welcomeDialog.addChild(text);
+
+  // ----------------------------------------------------------- BUTTON
+
+  let startButton = new createjs.Container;
+
+  graphics = new createjs.Graphics();
+  graphics.append(createjs.Graphics.beginCmd);
+  //let rect = new createjs.Graphics.Rect(0,0,welcomeDialog.width/10, welcomeDialog.height/10);
+  let rect2 = new createjs.Graphics.RoundRect(0,0,welcomeDialog.width/4, welcomeDialog.height/6, 5, 5, 5, 5);
+  graphics.append(rect2);
+  // fill the path we just defined:
+  let fill2 = new createjs.Graphics.Fill("rgba(0, 122, 255, 0.72)");
+  graphics.append(fill2);
+  let stroke2 = new createjs.Graphics.Stroke("white");
+  graphics.append(stroke2);
+  let strokeStyle2 = new createjs.Graphics.StrokeStyle(4);
+  graphics.append(strokeStyle2);
+  let shape2 = new createjs.Shape(graphics);
+  shape2.set({width: welcomeDialog.width/4, height: welcomeDialog.height/6})
+
+  startButton.addChild(shape2);
+  startButton.set({x: welcomeDialog.width/2 - welcomeDialog.width/8, y: welcomeDialog.height - welcomeDialog.height/6 - 40, width: welcomeDialog.width/4, height: welcomeDialog.height/6})
+
+  // ----------------------------------------------------------- BUTTON TEXT
+  let text2 = new createjs.Text("LET'S STAMP", "24px Arial", "#ffffff");
+  text2.x = 10;
+  text2.y = 40;
+  text2.textBaseline = "alphabetic";
+  startButton.addChild(text2);
+  startButton.cursor = 'pointer';
+
+  startButton.on('click', function() {
+    stage.removeChild(welcomeDialog);
+    startGame();
+  });
+
+  welcomeDialog.addChild(startButton);
+  welcomeDialog.shadow = dialogShadow;
+
+  stage.addChild(welcomeDialog);
+}
+
+// ----------------------------------------------------------- FINISH DIALOG
+function showFinishDialog() {
+  let finishDialog = new createjs.Container();
+  finishDialog.width = gameWidth/2;
+  finishDialog.height = gameHeight/2;
+  finishDialog.regX = gameWidth/4;
+  finishDialog.regY = gameHeight/4;
+  finishDialog.x = gameWidth/2;
+  finishDialog.y = gameHeight/2;
+
+
+  // ----------------------------------------------------------- FINISH DIALOG BACKGROUNDS
+  let graphics = new createjs.Graphics();
+
+  // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
+  graphics.append(createjs.Graphics.beginCmd);
+
+  // we need to define the path before applying the fill:
+  let rect = new createjs.Graphics.Rect(0,0,finishDialog.width, finishDialog.height);
+  graphics.append(rect);
+  // fill the path we just defined:
+  let fill = new createjs.Graphics.Fill();
+  fill.linearGradient(["#000", "#FFF"], [0, 1], 0, 0, 0, 750);
+  graphics.append(fill);
+
+
+
+  let shape = new createjs.Shape(graphics);
+  shape.set({x: 0, y:0, width: finishDialog.width, height: finishDialog.height, alpha: 0.7});
+
+  finishDialog.addChild(shape);
+
+  // ----------------------------------------------------------- QUANTSTAMP LOGO
+  let logo = new createjs.Bitmap("img/logo_white.png");
+  logo.setTransform(262,30,0.4,0.4);
+  finishDialog.addChild(logo);
+
+  // ----------------------------------------------------------- SCORE
+
+  let line1 = 'CONGRATULATIONS!';
+  let line2 = `You secured ${points} smart contracts with Quantstamp`;
+  let line3 = 'Thanks to you the blockchain is now a more secure place!';
+
+  if(points === 0) {
+  	line1 = 'BETTER LUCK NEXT TIME!';
+  	line3 = 'You could not make the blockchain a more secure place!';
+  }
+
+
+  let scoreText = new createjs.Text(line1, "36px Arial", "#ffffff");
+  scoreText.x = (points > 0) ? 155 : 110;
+  scoreText.y = 250;
+  scoreText.textBaseline = "alphabetic";
+  finishDialog.addChild(scoreText);
+
+  let scoreText2 = new createjs.Text(line2, "20px Arial", "#ffffff");
+  scoreText2.x = 125;
+  scoreText2.y = 288;
+  scoreText2.textBaseline = "alphabetic";
+  finishDialog.addChild(scoreText2);
+
+  let scoreText3 = new createjs.Text(line3, "20px Arial", "#ffffff");
+  scoreText3.x = (points > 0) ? 75 : 85;
+  scoreText3.y = 320;
+  scoreText3.textBaseline = "alphabetic";
+  finishDialog.addChild(scoreText3);
+
+  // ----------------------------------------------------------- FINISH MESSAGE
+
+  let text = new createjs.Text("Check out the awesome Quantstamp project at ", "20px Arial", "#ffffff");
+  text.x = 50;
+  text.y = 350;
+  text.textBaseline = "alphabetic";
+  finishDialog.addChild(text);
+
+  let text2 = new createjs.Text("quantstamp.com", "20px Arial", "#00ffae");
+  text2.x = 475;
+  text2.y = 350;
+  text2.textBaseline = "alphabetic";
+  text2.cursor = 'pointer';
+
+ 	text2.on('click', function() {
+		window.open('https://quantstamp.com')
+  });
+
+
+  finishDialog.addChild(text, text2);
+
+  finishDialog.shadow = dialogShadow;
+  stage.addChild(finishDialog);
+	stage.update();
+}

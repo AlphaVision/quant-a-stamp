@@ -5,12 +5,45 @@
   <script type="text/javascript" src="lib/easeljs-0.8.2.combined.js"></script>
   <script type="text/javascript" src="lib/preloadjs-0.6.2.combined.js"></script>
   <script type="text/javascript" src="lib/tweenjs-0.6.2.combined.js"></script>
-  <script type="text/javascript" src="src/main.js"></script>
+  <style type="text/css">
+    html,
+    body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #particle-canvas {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1370px;
+      height: 750px;
+      margin-left: -685px;
+      margin-top: -375px;
+    }
+
+    #quant-a-stamp {
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 21;
+      background:none;
+      border: 2px solid teal;
+    }
+  </style>
 </head>
 
 <body>
 
-  <canvas id="quant-a-stamp" width="1370" height="750" style="background:none; border: 1px solid green;"></canvas>
+  <div id="particle-canvas">
+    <canvas id="quant-a-stamp" width="1370" height="750"></canvas>
+  </div>
+
+  <script type="text/javascript" src="src/particles.js"></script>
+  <script type="text/javascript" src="src/main.js"></script>
 
 </body>
 
