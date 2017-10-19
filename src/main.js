@@ -25,27 +25,12 @@ let unapprovedFill = new createjs.Graphics.Fill("grey");
 let approvedFill   = new createjs.Graphics.Fill("green");
 let failedFill     = new createjs.Graphics.Fill("red");
 
-function createSmartContract(x,y) {
-  let graphics = new createjs.Graphics();
+let smartContractSpriteBackgrounds
+let smartContractSpriteForegrounds;
+let smartContractSpriteSheetBackgrounds;
+let smartContractSpriteSheetForegrounds;
+let queue;
 
-  // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
-  graphics.append(createjs.Graphics.beginCmd);
-  // we need to define the path before applying the fill:
-  var rect = new createjs.Graphics.Rect( 0,0, smartContractWidth, smartContractHeight );
-  graphics.append(rect);
-  // fill the path we just defined:
-  var stroke = new createjs.Graphics.Stroke("black");
-  graphics.append(stroke);
-
-  graphics.append(unapprovedFill);
-
-  var shape = new createjs.Shape(graphics);
-  shape.set({x: x, y:y});
-  shape.regX = smartContractWidth/2;
-  shape.regY = smartContractHeight/2;
-
-  return shape;
-}
 
 function prepareStage() {
   //find canvas and load images, wait for last image to load
@@ -59,8 +44,21 @@ function prepareStage() {
 }
 
 function prepareGame() {
+  let data;
   totalStartPoints = generateStartPoints().map(e => e);
-  console.log(totalStartPoints);
+
+  // create sprite sheets
+  data = {
+      images: ["img/smartContract-bgs.png"],
+      frames: {width: 217, height:276}
+  };
+  smartContractSpriteSheetBackgrounds = new createjs.SpriteSheet(data);
+
+  data.images = ["img/smartContract-fgs.png"];
+  smartContractSpriteSheetForegrounds = new createjs.SpriteSheet(data);
+
+  smartContractSpriteBackgrounds = new createjs.Sprite(smartContractSpriteSheetBackgrounds);
+  smartContractSpriteForegrounds = new createjs.Sprite(smartContractSpriteSheetForegrounds);
 }
 
 function generateStartPoints() {
@@ -72,6 +70,46 @@ function generateStartPoints() {
   }
   return startPointsList;
 }
+
+
+function createSmartContract(x,y) {
+  /*et graphics = new createjs.Graphics();
+
+  // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
+  graphics.append(createjs.Graphics.beginCmd);
+  // we need to define the path before applying the fill:
+  var rect = new createjs.Graphics.Rect( 0,0, smartContractWidth, smartContractHeight );
+  graphics.append(rect);
+  // fill the path we just defined:
+  var stroke = new createjs.Graphics.Stroke("black");
+  graphics.append(stroke);
+
+  graphics.append(unapprovedFill);
+
+
+  var sc = new createjs.Shape(graphics);*/
+
+  var sc = new createjs.Container();
+  sc.set({
+  	x: x,
+  	y: y,
+  	width: smartContractWidth,
+  	height: smartContractHeight
+  });
+  sc.regX = Math.floor(smartContractWidth/2);
+  sc.regY = Math.floor(smartContractHeight/2);
+
+  let backgrounds = smartContractSpriteBackgrounds.clone();
+  let foregrounds = smartContractSpriteForegrounds.clone();
+
+  backgrounds.gotoAndStop(0);
+  foregrounds.gotoAndStop(0);
+
+  sc.addChild(backgrounds, foregrounds);
+
+  return sc;
+}
+
 
 function stagePoint() {
 	// x and y should always put the element with padding so when scaled it does not go out of the canvas
@@ -105,7 +143,7 @@ function handleTick(event) {
       .call(function() {
       	smartContract.off('click');
       	if(!this.approved) {
-	      	this.graphics.append(failedFill);
+	      	//this.graphics.append(failedFill);
       	}
       })
       .to({ alpha: 0}, 200, createjs.Ease.quadOut(2));
@@ -115,7 +153,7 @@ function handleTick(event) {
 
 function smartContractClicked() {
 	this.approved = true;
-	this.graphics.append(approvedFill);
+	//this.graphics.append(approvedFill);
 }
 
 function generateContracts() {
@@ -127,13 +165,30 @@ function generateContracts() {
   stage.update();
 }
 
+function loadAssets() {
+	let assetLoader = new Promise((resolve, reject) => {
+		queue = new createjs.LoadQueue();
+
+		queue.on("complete", resolve);
+		queue.loadManifest([
+			{id: "smartContractSpriteSheetBackgrounds", src:"img/smartContract-bgs.png"},
+			{id: "smartContractSpriteSheetForegrounds", src:"img/smartContract-bgs.png"},
+		]);
+	});
+
+	return assetLoader;
+}
+
 
 window.addEventListener('load', function(event) {
   prepareStage();
   createjs.Ticker.framerate = 30;
   createjs.Ticker.addEventListener("tick", stage);
 
-  prepareGame();
-  //generateContracts();
-  startGame();
+  loadAssets()
+  .then(() => {
+	  prepareGame();
+	  //generateContracts();
+	  startGame();
+  });
 });
