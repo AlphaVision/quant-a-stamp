@@ -423,7 +423,7 @@ function showFinishDialog() {
   finishDialog.addChild(scoreText);
 
   let scoreText2 = new createjs.Text(line2, "20px Arial", "#ffffff");
-  scoreText2.x = 125;
+  scoreText2.x = 110;
   scoreText2.y = 288;
   scoreText2.textBaseline = "alphabetic";
   finishDialog.addChild(scoreText2);
