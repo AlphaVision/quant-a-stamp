@@ -13,6 +13,7 @@ let vStartPoints = startPoints.y.length;
 
 let totalSmartContractsInCirculation = Math.floor(Math.random()*300);
 let totalStartPoints = [];
+let currentStartPoints = [];
 
 let gameWidth;
 let gameHeight;
@@ -20,10 +21,6 @@ let gameHeight;
 let smartContractWidth = 217;
 let smartContractHeight = 276;
 let smartContractLife = 1500;
-
-let unapprovedFill = new createjs.Graphics.Fill("grey");
-let approvedFill   = new createjs.Graphics.Fill("green");
-let failedFill     = new createjs.Graphics.Fill("red");
 
 let smartContractSpriteBackgrounds
 let smartContractSpriteForegrounds;
@@ -59,6 +56,9 @@ function prepareGame() {
 
   smartContractSpriteBackgrounds = new createjs.Sprite(smartContractSpriteSheetBackgrounds);
   smartContractSpriteForegrounds = new createjs.Sprite(smartContractSpriteSheetForegrounds);
+
+  smartContractSpriteBackgrounds.name = 'backgrounds';
+	smartContractSpriteForegrounds.name = 'foregrounds';
 }
 
 function generateStartPoints() {
@@ -73,22 +73,6 @@ function generateStartPoints() {
 
 
 function createSmartContract(x,y) {
-  /*et graphics = new createjs.Graphics();
-
-  // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
-  graphics.append(createjs.Graphics.beginCmd);
-  // we need to define the path before applying the fill:
-  var rect = new createjs.Graphics.Rect( 0,0, smartContractWidth, smartContractHeight );
-  graphics.append(rect);
-  // fill the path we just defined:
-  var stroke = new createjs.Graphics.Stroke("black");
-  graphics.append(stroke);
-
-  graphics.append(unapprovedFill);
-
-
-  var sc = new createjs.Shape(graphics);*/
-
   var sc = new createjs.Container();
   sc.set({
   	x: x,
@@ -122,13 +106,35 @@ function startGame() {
   createjs.Ticker.addEventListener("tick", handleTick);
 }
 
+function getStartPoint() {
+	let point = totalStartPoints[Math.floor(Math.random() * totalStartPoints.length)];
+	while(checkStartPointAvailability(point) === false) {
+		console.log('startPoint not available')
+		point = totalStartPoints[Math.floor(Math.random() * totalStartPoints.length)];
+	}
+	return point;
+}
+
+function checkStartPointAvailability(p) {
+	// need to define how this will work
+	return true;
+	let available = false;
+	for(var point in currentStartPoints) {
+		if(p.x + smartContractWidth < point.x && p.y + smartContractHeight < point.y) {
+			currentStartPoints.push(point);
+			available = true;
+		}
+	}
+	return available;
+}
+
 function handleTick(event) {
   // Actions carried out each tick (aka frame)
   if (!event.paused) {
     // Actions carried out when the Ticker is not paused.
     let randomTick = Math.ceil(Math.random() * 35) + 15;
     if(createjs.Ticker.getTicks() % randomTick === 0) {
-      let point = totalStartPoints[Math.floor(Math.random() * totalStartPoints.length)];
+      let point = getStartPoint();
       let smartContract = createSmartContract(point.x, point.y);
       smartContract.scaleX = 0;
       smartContract.scaleY = 0;
@@ -143,7 +149,8 @@ function handleTick(event) {
       .call(function() {
       	smartContract.off('click');
       	if(!this.approved) {
-	      	//this.graphics.append(failedFill);
+	      	this.getChildByName('backgrounds').gotoAndStop(2);
+  				this.getChildByName('foregrounds').gotoAndStop(2);
       	}
       })
       .to({ alpha: 0}, 200, createjs.Ease.quadOut(2));
@@ -152,8 +159,12 @@ function handleTick(event) {
 }
 
 function smartContractClicked() {
-	this.approved = true;
-	//this.graphics.append(approvedFill);
+	this.off('click');
+	if(!this.approved) {
+		this.approved = true;
+		this.getChildByName('backgrounds').gotoAndStop(1);
+		this.getChildByName('foregrounds').gotoAndStop(1);
+	}
 }
 
 function generateContracts() {
