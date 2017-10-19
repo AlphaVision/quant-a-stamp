@@ -285,7 +285,7 @@ function addScoreBoard() {
   graphics.append(fill);
 
   let scoreBoardBg = new createjs.Shape(graphics);
-  scoreBoardBg.alpha = 0.85;
+  scoreBoardBg.alpha = 0.25;
 
 
   pointsText = new createjs.Text(pointsLabel + "0", "24px Arial", "#21ad82");
