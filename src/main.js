@@ -34,6 +34,12 @@ let fouls = 0;
 let maxFouls = 10;
 let gameFinished = false;
 let dialogShadow = new createjs.Shadow("#000000", 10, 15, 60);
+let logoStamp;
+let scoreBoard;
+let pointsText;
+let failsText
+let pointsLabel = "SECURED: ";
+let failsLabel = "HACKED: ";
 
 
 function prepareStage() {
@@ -64,13 +70,15 @@ function prepareGame() {
   totalStartPoints = generateStartPoints().map(e => e);
 
   // create sprite sheets
+
+  queue.getResult("myImage")
   data = {
-      images: ["img/smartContract-bgs.png"],
+      images: [queue.getResult("smartContractSpriteSheetBackgrounds")],
       frames: {width: 217, height:276}
   };
   smartContractSpriteSheetBackgrounds = new createjs.SpriteSheet(data);
 
-  data.images = ["img/smartContract-fgs.png"];
+  data.images = [queue.getResult("smartContractSpriteSheetForegrounds")];
   smartContractSpriteSheetForegrounds = new createjs.SpriteSheet(data);
 
   smartContractSpriteBackgrounds = new createjs.Sprite(smartContractSpriteSheetBackgrounds);
@@ -79,7 +87,21 @@ function prepareGame() {
   smartContractSpriteBackgrounds.name = 'backgrounds';
 	smartContractSpriteForegrounds.name = 'foregrounds';
 
-	myCursor = new createjs.Bitmap("img/crosshair.png");
+  logoStamp = new createjs.Bitmap(queue.getResult("stamp"));
+  logoStamp.set({
+    width: 70,
+    height: 70,
+    x: 160,
+    y: 220,
+    regX: 35,
+    regY: 35,
+    alpha: 0,
+    name: 'stamp',
+    scaleX: 2,
+    scaleY: 2
+  });
+
+	myCursor = new createjs.Bitmap(queue.getResult("crosshair"));
 	myCursor.name = "crosshair";
 	myCursor.set({regX: 22, regY: 22, width: 44, height: 44});
 	myCursor.mouseEnabled = false;
@@ -112,7 +134,11 @@ function createSmartContract(x,y) {
   backgrounds.gotoAndStop(0);
   foregrounds.gotoAndStop(0);
 
-  sc.addChild(backgrounds, foregrounds);
+  let degrees = Math.floor(Math.random() * 45) + (Math.random() > 0.5 ? 0 : 315);
+  let ls = logoStamp.clone();
+  ls.rotation = degrees;
+
+  sc.addChild(backgrounds, foregrounds, ls);
 
   return sc;
 }
@@ -147,7 +173,6 @@ function startGame() {
 function getStartPoint() {
 	let point = totalStartPoints[Math.floor(Math.random() * totalStartPoints.length)];
 	while(checkStartPointAvailability(point) === false) {
-		console.log('startPoint not available')
 		point = totalStartPoints[Math.floor(Math.random() * totalStartPoints.length)];
 	}
 	return point;
@@ -180,6 +205,7 @@ function gameTick(event) {
       smartContract.scaleX = 0;
       smartContract.scaleY = 0;
       smartContract.approved = false;
+      smartContract.failed = false;
 
       smartContractsContainer.addChild(smartContract);
 
@@ -189,7 +215,8 @@ function gameTick(event) {
       createjs.Tween.get(smartContract, { loop: false })
       .to({ scaleX: 1, scaleY: 1 }, smartContractLife, createjs.Ease.backOut())
       .call(function() {
-      	smartContract.off('click');
+        this.failed = true;
+      	this.off('click', smartContractClicked);
       	if(!this.approved) {
 	      	this.getChildByName('backgrounds').gotoAndStop(2);
   				this.getChildByName('foregrounds').gotoAndStop(2);
@@ -206,12 +233,14 @@ function gameTick(event) {
 }
 
 function smartContractClicked() {
-	this.off('click');
-	if(!this.approved) {
+	this.off('click', smartContractClicked);
+	if(!this.approved && !this.failed) {
 		this.approved = true;
-		this.getChildByName('backgrounds').gotoAndStop(1);
-		this.getChildByName('foregrounds').gotoAndStop(1);
 		scorePoint(this.approved);
+    this.getChildByName('backgrounds').gotoAndStop(1);
+    this.getChildByName('foregrounds').gotoAndStop(1);
+    createjs.Tween.get(this.getChildByName('stamp'), { loop: false })
+    .to({scaleX: 1, scaleY: 1, alpha: 1}, 250, createjs.Ease.backOut())
 	}
 }
 
@@ -226,18 +255,63 @@ function scorePoint(isGood) {
 		fouls++;
 	}
 
-	console.log("points: " + points, "fouls: " + fouls);
 	if(fouls >= maxFouls) {
 		fouls == maxFouls;
 		stopGame();
 	}
+  updateScoreBoard();
+}
+
+function addScoreBoard() {
+  let scoreBoard = new createjs.Container();
+
+  scoreBoard.set({
+    x: gameWidth - 370,
+    y: 0,
+    width: 370,
+    height: 40
+  });
+
+  let graphics = new createjs.Graphics();
+
+  // start a new path. Graphics.beginCmd is a reusable BeginPath instance:
+  graphics.append(createjs.Graphics.beginCmd);
+
+  // we need to define the path before applying the fill:
+  let rect = new createjs.Graphics.Rect(0,0,scoreBoard.width, scoreBoard.height);
+  graphics.append(rect);
+  // fill the path we just defined:
+  let fill = new createjs.Graphics.Fill('black');
+  graphics.append(fill);
+
+  let scoreBoardBg = new createjs.Shape(graphics);
+  scoreBoardBg.alpha = 0.85;
+
+
+  pointsText = new createjs.Text(pointsLabel + "0", "24px Arial", "#21ad82");
+  pointsText.x = 20;
+  pointsText.y = 30;
+  pointsText.textBaseline = "alphabetic";
+
+  failsText = new createjs.Text(failsLabel + "0", "24px Arial", "#ad2121");
+  failsText.x = 210;
+  failsText.y = 30;
+  failsText.textBaseline = "alphabetic";
+
+  scoreBoard.addChild(scoreBoardBg, pointsText, failsText);
+  stage.addChild(scoreBoard);
+}
+
+function updateScoreBoard() {
+  pointsText.text = pointsLabel + points;
+  failsText.text = failsLabel + fouls;
 }
 
 function stopGame() {
 	gameFinished = true;
 	smartContractsContainer.mouseEnabled = false;
 	createjs.Tween.get(smartContractsContainer, { loop: false })
-  .to({ alpha: 0}, 200, createjs.Ease.backOut())
+  .to({ alpha: 0}, 600, createjs.Ease.backOut())
   .call(function() {
   	stage.removeChild(smartContractsContainer);
   })
@@ -258,8 +332,9 @@ function loadAssets() {
 		queue.on("complete", resolve);
 		queue.loadManifest([
 			{id: "smartContractSpriteSheetBackgrounds", src:"img/smartContract-bgs.png"},
-			{id: "smartContractSpriteSheetForegrounds", src:"img/smartContract-bgs.png"},
-			{id: "crosshair", src:"img/crosshair.png"}
+			{id: "smartContractSpriteSheetForegrounds", src:"img/smartContract-fgs.png"},
+			{id: "crosshair", src:"img/crosshair.png"},
+      {id: "stamp", src:"img/logo_stamp.png"}
 		]);
 	});
 
@@ -320,8 +395,8 @@ function showWelcomeDialog() {
 
   // ----------------------------------------------------------- GAME INFO
 
-  let text = new createjs.Text("Sign the smart contracts before the hackers get to them", "20px Arial", "#ffffff");
-  text.x = 110;
+  let text = new createjs.Text("Sign the smart contracts before the hackers get to 10 of them", "20px Arial", "#ffffff");
+  text.x = 70;
   text.y = 240;
   text.textBaseline = "alphabetic";
   welcomeDialog.addChild(text);
@@ -359,6 +434,7 @@ function showWelcomeDialog() {
   startButton.on('click', function() {
     stage.removeChild(welcomeDialog);
     startGame();
+    addScoreBoard();
   });
 
   welcomeDialog.addChild(startButton);
@@ -407,7 +483,7 @@ function showFinishDialog() {
   // ----------------------------------------------------------- SCORE
 
   let line1 = 'CONGRATULATIONS!';
-  let line2 = `You secured ${points} smart contracts with Quantstamp`;
+  let line2 = `You secured ${points} smart contracts with Quantstamp.`;
   let line3 = 'Thanks to you the blockchain is now a more secure place!';
 
   if(points === 0) {
