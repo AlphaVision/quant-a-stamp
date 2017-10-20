@@ -94,7 +94,7 @@ function prepareGame() {
   	y: 0
   });
 
-  let contractSlotBg = new createjs.Bitmap(queue.getResult("contractSlot"));
+  /*let contractSlotBg = new createjs.Bitmap(queue.getResult("contractSlot"));
   contractSlotBg.set({
   	width: smartContractBgWidth,
   	height: smartContractBgHeight,
@@ -102,7 +102,7 @@ function prepareGame() {
   	y: 0
   });
 
-  contractSlot.addChild(contractSlotBg);
+  contractSlot.addChild(contractSlotBg);*/
 
 	for (let yPos of slotPoints.y) {
 		for (let xPos of slotPoints.x) {
@@ -590,7 +590,7 @@ function loadAssets() {
 			{id: "smartContractSpriteSheetForegrounds", src:"img/smartContract-fgs.png"},
 			{id: "crosshair", src:"img/crosshair.png"},
       {id: "stamp", src:"img/logo_stamp.png"},
-      {id: "contractSlot", src: "img/slot_bg.png"}
+      //{id: "contractSlot", src: "img/slot_bg.png"}
 		]);
 	});
 
