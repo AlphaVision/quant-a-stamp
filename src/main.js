@@ -15,12 +15,26 @@ let totalSmartContractsInCirculation = Math.floor(Math.random()*300);
 let totalStartPoints = [];
 let currentStartPoints = [];
 
+
 let gameWidth;
 let gameHeight;
 
 let smartContractWidth = 217;
 let smartContractHeight = 276;
+let smartContractCenterPointX = Math.floor(smartContractWidth/2);
+let smartContractCenterPointY = Math.floor(smartContractHeight/2);
+let smartContractBgWidth = smartContractWidth + 4;
+let smartContractBgHeight = smartContractHeight + 4;
+let smartContractSlotSpacing = 5;
+let smartContractSlotPadding = 8;
 let smartContractLife = 1500;
+
+let slotPoints = {
+	'x': [10, 236, 462, 688, 914, 1140],
+	'y': [78, 388]
+}
+let smartContractSlots = [];
+let contractSlots = [];
 
 let smartContractSpriteBackgrounds
 let smartContractSpriteForegrounds;
@@ -40,6 +54,7 @@ let pointsText;
 let failsText
 let pointsLabel = "SECURED: ";
 let failsLabel = "HACKED: ";
+let contractSlot;
 
 
 function prepareStage() {
@@ -62,6 +77,7 @@ function prepareStage() {
   	mouseChildren: true,
   	cursor: 'none'
   });
+
   stage.addChild(smartContractsContainer);
 }
 
@@ -69,9 +85,45 @@ function prepareGame() {
   let data;
   totalStartPoints = generateStartPoints().map(e => e);
 
-  // create sprite sheets
+  // contract slots
+  contractSlot = new createjs.Container();
+  contractSlot.set({
+  	width: smartContractBgWidth,
+  	height: smartContractBgHeight,
+  	x: 0,
+  	y: 0
+  });
 
-  queue.getResult("myImage")
+  let contractSlotBg = new createjs.Bitmap(queue.getResult("contractSlot"));
+  contractSlotBg.set({
+  	width: smartContractBgWidth,
+  	height: smartContractBgHeight,
+  	x: 0,
+  	y: 0
+  });
+
+  contractSlot.addChild(contractSlotBg);
+
+	for (let yPos of slotPoints.y) {
+		for (let xPos of slotPoints.x) {
+	  	let slot = contractSlot.clone(true);
+	  	slot.set({
+	  		x: xPos,
+	  		y: yPos,
+	  		alpha: 0,
+	  		name: `${xPos}x${yPos}`,
+	  		isFree: true
+	  	});
+	  	contractSlots.push(slot);
+	  	smartContractsContainer.addChild(slot);
+	  }
+  }
+
+  contractSlots = shuffleArray(contractSlots);
+
+  stage.update();
+
+  // create sprite sheets
   data = {
       images: [queue.getResult("smartContractSpriteSheetBackgrounds")],
       frames: {width: 217, height:276}
@@ -125,8 +177,8 @@ function createSmartContract(x,y) {
   	width: smartContractWidth,
   	height: smartContractHeight
   });
-  sc.regX = Math.floor(smartContractWidth/2);
-  sc.regY = Math.floor(smartContractHeight/2);
+  sc.regX = smartContractCenterPointX;
+  sc.regY = smartContractCenterPointY;
 
   let backgrounds = smartContractSpriteBackgrounds.clone();
   let foregrounds = smartContractSpriteForegrounds.clone();
@@ -167,6 +219,10 @@ function useCustomCursor(isCustom) {
 function startGame() {
 	stage.enableMouseOver();
 	useCustomCursor(true);
+	for(let i = 0; i < contractSlots.length; i++) {
+		createjs.Tween.get(contractSlots[i], { loop: false })
+		.to({alpha: 1}, 300*i, createjs.Ease.quadOut(2))
+	}
   createjs.Ticker.addEventListener("tick", gameTick);
 }
 
@@ -176,6 +232,13 @@ function getStartPoint() {
 		point = totalStartPoints[Math.floor(Math.random() * totalStartPoints.length)];
 	}
 	return point;
+}
+
+function getContractSlot() {
+	let randomIndex = Math.floor(Math.random() * contractSlots.length);
+	let slot = contractSlots[randomIndex];
+
+	return slot;
 }
 
 function checkStartPointAvailability(p) {
@@ -198,16 +261,24 @@ function gameTick(event) {
   // Actions carried out each tick (aka frame)
   if (!event.paused) {
     // Actions carried out when the Ticker is not paused.
-    let randomTick = Math.ceil(Math.random() * 35) + 15;
+    let randomTick = Math.ceil(Math.random() * 30) + 5;
     if(createjs.Ticker.getTicks() % randomTick === 0) {
-      let point = getStartPoint();
-      let smartContract = createSmartContract(point.x, point.y);
+      // let point = getStartPoint();
+      let slot = getContractSlot();
+
+      if(!slot.isFree) {
+      	return;
+      }
+
+      slot.isFree = false;
+
+      let smartContract = createSmartContract(smartContractCenterPointX+2, smartContractCenterPointY+2);
       smartContract.scaleX = 0;
       smartContract.scaleY = 0;
       smartContract.approved = false;
       smartContract.failed = false;
 
-      smartContractsContainer.addChild(smartContract);
+      slot.addChild(smartContract);
 
       smartContract.on('click', smartContractClicked);
 
@@ -226,7 +297,8 @@ function gameTick(event) {
       .wait(300)
       .to({ alpha: 0}, 200, createjs.Ease.quadOut(2))
       .call(function() {
-      	smartContractsContainer.removeChild(this);
+      	slot.removeChild(this);
+      	slot.isFree = true;
       }, this);
     }
   }
@@ -310,49 +382,20 @@ function updateScoreBoard() {
 function stopGame() {
 	gameFinished = true;
 	smartContractsContainer.mouseEnabled = false;
+	createjs.Ticker.removeEventListener("tick", gameTick);
+	useCustomCursor(false);
+	createjs.Ticker.addEventListener("tick", finishTick);
 	createjs.Tween.get(smartContractsContainer, { loop: false })
   .to({ alpha: 0}, 600, createjs.Ease.backOut())
   .call(function() {
   	stage.removeChild(smartContractsContainer);
+		showFinishDialog();
   })
-	createjs.Ticker.removeEventListener("tick", gameTick);
-	useCustomCursor(false);
-	createjs.Ticker.addEventListener("tick", finishTick);
-	showFinishDialog();
 }
 
 function finishTick() {
 
 }
-
-function loadAssets() {
-	let assetLoader = new Promise((resolve, reject) => {
-		queue = new createjs.LoadQueue();
-
-		queue.on("complete", resolve);
-		queue.loadManifest([
-			{id: "smartContractSpriteSheetBackgrounds", src:"img/smartContract-bgs.png"},
-			{id: "smartContractSpriteSheetForegrounds", src:"img/smartContract-fgs.png"},
-			{id: "crosshair", src:"img/crosshair.png"},
-      {id: "stamp", src:"img/logo_stamp.png"}
-		]);
-	});
-
-	return assetLoader;
-}
-
-
-window.addEventListener('load', function(event) {
-  prepareStage();
-  createjs.Ticker.framerate = 30;
-  createjs.Ticker.addEventListener("tick", stage);
-
-  loadAssets()
-  .then(() => {
-	  prepareGame();
-    showWelcomeDialog();
-  });
-});
 
 
 
@@ -535,3 +578,48 @@ function showFinishDialog() {
   stage.addChild(finishDialog);
 	stage.update();
 }
+
+
+function loadAssets() {
+	let assetLoader = new Promise((resolve, reject) => {
+		queue = new createjs.LoadQueue();
+
+		queue.on("complete", resolve);
+		queue.loadManifest([
+			{id: "smartContractSpriteSheetBackgrounds", src:"img/smartContract-bgs.png"},
+			{id: "smartContractSpriteSheetForegrounds", src:"img/smartContract-fgs.png"},
+			{id: "crosshair", src:"img/crosshair.png"},
+      {id: "stamp", src:"img/logo_stamp.png"},
+      {id: "contractSlot", src: "img/slot_bg.png"}
+		]);
+	});
+
+	return assetLoader;
+}
+
+function shuffleArray(array) {
+  let i = 0;
+  let j = 0;
+  let temp = null;
+
+  for (i = array.length - 1; i > 0; i -= 1) {
+    j = Math.floor(Math.random() * (i + 1))
+    temp = array[i]
+    array[i] = array[j]
+    array[j] = temp
+  }
+  return array;
+}
+
+
+window.addEventListener('load', function(event) {
+  prepareStage();
+  createjs.Ticker.framerate = 30;
+  createjs.Ticker.addEventListener("tick", stage);
+
+  loadAssets()
+  .then(() => {
+	  prepareGame();
+    showWelcomeDialog();
+  });
+});
